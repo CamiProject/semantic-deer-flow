@@ -1,0 +1,13 @@
+schema_version: "1"
+suite_id: saas-agent-smoke
+version: "2026-07-30.1"
+case_files:
+  - ../cases/saas-agent-smoke.jsonl
+default_trials: 1
+high_risk_trials: 3
+gate:
+  fail_on_any_p0: true
+  minimum_quality_score: 8.0
+  conditional_quality_score: 7.0
+  maximum_token_regression: 0.15
+  maximum_latency_regression: 0.20

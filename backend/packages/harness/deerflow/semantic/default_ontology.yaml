@@ -1,0 +1,67 @@
+version: "1"
+policy_version: "1"
+mapping_version: "1"
+objects:
+  Site:
+    table: demo_sites
+    id_field: id
+    label: 场地
+    keywords: [site, 场地]
+    properties:
+      id: {column: id, type: string, label: 场地编码, filterable: true}
+      name: {column: name, type: string, label: 场地名称, filterable: true}
+  Project:
+    table: demo_projects
+    id_field: id
+    label: 项目
+    keywords: [project, 项目]
+    properties:
+      id: {column: id, type: string, label: 项目编码, filterable: true}
+      name: {column: name, type: string, label: 项目名称, filterable: true}
+      site_id: {column: site_id, type: string, label: 所属场地, filterable: true}
+links:
+  Project.site:
+    from_object: Project
+    to_object: Site
+    from_field: site_id
+    to_field: id
+    cardinality: many_to_one
+metrics:
+  site.count:
+    label: 场地数量
+    object_type: Site
+    aggregation: count
+    dimensions: []
+    filters: [id, name]
+    unit: count
+    grain: site
+    time_semantics: snapshot
+    keywords: [场地数量, 场地数, site count]
+  project.count:
+    label: 项目数量
+    object_type: Project
+    aggregation: count
+    dimensions: [site_id]
+    filters: [id, name, site_id]
+    unit: count
+    grain: project
+    time_semantics: snapshot
+    keywords: [项目数量, 项目数, project count]
+actions:
+  site.update_display_name:
+    version: "1"
+    label: 修改场地显示名称
+    keywords: [change site, changing site, rename site, 修改场地名称, 场地重命名]
+    target_type: Site
+    scope_dimension: site
+    parameters:
+      name: {type: string, required: true, min_length: 1, max_length: 128}
+    preconditions: []
+    approval: {required: true}
+    authorization:
+      allowed_roles: [site_admin, tenant_admin]
+    executor:
+      type: domain_api
+      method: PATCH
+      path: /api/internal/sites/{target_id}/display-name
+      result_fields: [updated, version]

@@ -1,0 +1,68 @@
+# Opt-in isolated Evals overlay. Never include this file in a production stack.
+services:
+  gateway:
+    environment:
+      - DEER_FLOW_ENV=eval
+      - SAAS_AUTHORIZATION_JWT_KEY=${EVALS_AUTHORIZATION_JWT_KEY}
+      - SAAS_AUTHORIZATION_JWT_ALGORITHMS=${EVALS_AUTHORIZATION_JWT_ALGORITHM:-HS256}
+    ports:
+      - "127.0.0.1:8001:8001"
+    depends_on:
+      eval-fixture:
+        condition: service_healthy
+
+  semantic-api:
+    environment:
+      - DEER_FLOW_ENV=eval
+      - DEER_FLOW_SEMANTIC_DEMO_DATA=true
+      - DEER_FLOW_EVALS_EVIDENCE_ENABLED=true
+      - SAAS_AUTHORIZATION_JWT_KEY=${EVALS_AUTHORIZATION_JWT_KEY}
+      - SAAS_AUTHORIZATION_JWT_ALGORITHMS=${EVALS_AUTHORIZATION_JWT_ALGORITHM:-HS256}
+    ports:
+      - "127.0.0.1:8003:8003"
+    depends_on:
+      eval-fixture:
+        condition: service_healthy
+
+  action-worker:
+    environment:
+      - DEER_FLOW_ENV=eval
+      - DEER_FLOW_SEMANTIC_DEMO_DATA=true
+      - SAAS_AUTHORIZATION_JWT_KEY=${EVALS_AUTHORIZATION_JWT_KEY}
+      - SAAS_AUTHORIZATION_JWT_ALGORITHMS=${EVALS_AUTHORIZATION_JWT_ALGORITHM:-HS256}
+      - DEER_FLOW_ACTION_WORKER_DOMAIN_API_TOKEN=${EVALS_SAAS_INTERNAL_TOKEN}
+      - DEER_FLOW_ACTION_WORKER_AUTHORIZATION_TOKEN=${EVALS_SAAS_INTERNAL_TOKEN}
+      - SAAS_DOMAIN_API_BASE_URL=http://eval-fixture:8004
+      - SAAS_ACTION_AUTHORIZATION_REVALIDATION_URL=http://eval-fixture:8004/api/authorization/actions/revalidate
+      - NO_PROXY=${NO_PROXY:-}${NO_PROXY:+,}localhost,127.0.0.1,::1,semantic-api,eval-fixture,host.docker.internal
+      - no_proxy=${no_proxy:-}${no_proxy:+,}localhost,127.0.0.1,::1,semantic-api,eval-fixture,host.docker.internal
+    depends_on:
+      eval-fixture:
+        condition: service_healthy
+
+  eval-fixture:
+    image: deer-flow-backend:${DEER_FLOW_IMAGE_TAG:-local}
+    container_name: deer-flow-eval-fixture
+    command: sh -c "cd backend && PYTHONPATH=. uv run --no-sync uvicorn app.evals.fixture_api:create_fixture_app --factory --host 0.0.0.0 --port 8004 --workers 1"
+    working_dir: /app
+    environment:
+      - DEER_FLOW_ENV=eval
+      - EVALS_FIXTURE_TOKEN=${EVALS_FIXTURE_TOKEN}
+      - EVALS_SAAS_INTERNAL_TOKEN=${EVALS_SAAS_INTERNAL_TOKEN}
+      - EVALS_AUTHORIZATION_JWT_KEY=${EVALS_AUTHORIZATION_JWT_KEY}
+      - SAAS_AUTHORIZATION_JWT_KEY=${EVALS_AUTHORIZATION_JWT_KEY}
+      - EVALS_AUTHORIZATION_JWT_ALGORITHM=${EVALS_AUTHORIZATION_JWT_ALGORITHM:-HS256}
+      - SAAS_AUTHORIZATION_JWT_ISSUER=${SAAS_AUTHORIZATION_JWT_ISSUER:-saas-gateway}
+      - SAAS_ACTION_AUTHORIZATION_AUDIENCE=${SAAS_ACTION_AUTHORIZATION_AUDIENCE:-action-worker}
+    env_file:
+      - ../.env
+    ports:
+      - "127.0.0.1:8004:8004"
+    networks:
+      - deer-flow
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health', timeout=3).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12

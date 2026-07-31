@@ -1,0 +1,10 @@
+{"text":"查看某个场地本月能耗","route_type":"simple","signals":{"risk_level":"read","difficulty_level":"low","scale_level":"single","delivery_level":"direct"},"label_version":"1"}
+{"text":"统计一个项目今天的用电量","route_type":"simple","signals":{"risk_level":"read","difficulty_level":"low","scale_level":"single","delivery_level":"direct"},"label_version":"1"}
+{"text":"解释一下什么是能耗强度","route_type":"simple","signals":{"risk_level":"none","difficulty_level":"low","scale_level":"single","delivery_level":"direct"},"label_version":"1"}
+{"text":"查询某场地上周的碳排放量","route_type":"simple","signals":{"risk_level":"read","difficulty_level":"low","scale_level":"single","delivery_level":"direct"},"label_version":"1"}
+{"text":"对比多个场地本月和上月的能耗趋势并解释原因","route_type":"complex","signals":{"risk_level":"read","difficulty_level":"high","scale_level":"small_set","delivery_level":"recommendation"},"label_version":"1"}
+{"text":"分析所有项目的能耗排名和异常原因","route_type":"complex","signals":{"risk_level":"read","difficulty_level":"high","scale_level":"tenant_wide","delivery_level":"validated"},"label_version":"1"}
+{"text":"查询多处场地的历史数据并给出优化建议","route_type":"complex","signals":{"risk_level":"read","difficulty_level":"high","scale_level":"cross_source","delivery_level":"recommendation"},"label_version":"1"}
+{"text":"修改场地显示名称","route_type":"complex","signals":{"risk_level":"high","difficulty_level":"medium","scale_level":"single","delivery_level":"direct"},"label_version":"1"}
+{"text":"批量更新多个场地的配置并发布","route_type":"complex","signals":{"risk_level":"high","difficulty_level":"high","scale_level":"tenant_wide","delivery_level":"validated"},"label_version":"1"}
+{"text":"交叉验证多个数据源的统计结果","route_type":"complex","signals":{"risk_level":"read","difficulty_level":"high","scale_level":"cross_source","delivery_level":"validated"},"label_version":"1"}
