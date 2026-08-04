@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from deerflow.config.semantic_recall_config import SemanticRecallConfig
 
 
 @dataclass(frozen=True)
@@ -16,10 +18,16 @@ class SemanticSettings:
     scope_resolver_url: str = ""
     scope_resolver_token: str = ""
     evals_evidence_enabled: bool = False
+    semantic_recall: SemanticRecallConfig = field(default_factory=SemanticRecallConfig)
 
 
 def get_semantic_settings() -> SemanticSettings:
     from deerflow.config import get_app_config
+
+    try:
+        app_config = get_app_config()
+    except FileNotFoundError:
+        app_config = None
 
     database_url = os.environ.get(
         "DEER_FLOW_SEMANTIC_DATABASE_URL",
@@ -38,10 +46,7 @@ def get_semantic_settings() -> SemanticSettings:
     if explicit_evals is not None:
         evals_requested = explicit_evals.strip().lower() in {"1", "true", "yes", "on"}
     else:
-        try:
-            evals_requested = get_app_config().evals.enabled
-        except Exception:
-            evals_requested = False
+        evals_requested = app_config.evals.enabled if app_config is not None else False
     evals_enabled = os.environ.get("DEER_FLOW_ENV", "").strip() == "eval" and evals_requested
     return SemanticSettings(
         database_url=database_url,
@@ -58,4 +63,5 @@ def get_semantic_settings() -> SemanticSettings:
             "",
         ).strip(),
         evals_evidence_enabled=evals_enabled,
+        semantic_recall=app_config.semantic_recall if app_config is not None else SemanticRecallConfig(),
     )

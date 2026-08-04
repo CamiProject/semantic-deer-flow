@@ -254,8 +254,13 @@ class SemanticQueryRuntime:
         question: str,
         include_facts: bool = True,
         fact_limit: int = 5,
+        candidate_ids: Mapping[str, Sequence[str]] | None = None,
     ) -> dict[str, Any]:
-        context = self.ontology.resolve(question, authorization=authorization)
+        context = self.ontology.resolve(
+            question,
+            authorization=authorization,
+            candidate_ids=candidate_ids,
+        )
         facts: list[dict[str, Any]] = []
         source_refs: set[str] = set()
         as_of = datetime.now(UTC).isoformat()

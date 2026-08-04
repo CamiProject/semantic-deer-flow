@@ -31,6 +31,7 @@ from deerflow.config.runtime_paths import existing_project_file
 from deerflow.config.safety_finish_reason_config import SafetyFinishReasonConfig
 from deerflow.config.sandbox_config import SandboxConfig
 from deerflow.config.scheduler_config import SchedulerConfig
+from deerflow.config.semantic_recall_config import SemanticRecallConfig
 from deerflow.config.skill_evolution_config import SkillEvolutionConfig
 from deerflow.config.skill_scan_config import SkillScanConfig
 from deerflow.config.skills_config import SkillsConfig
@@ -150,6 +151,7 @@ class AppConfig(BaseModel):
     )
     models: list[ModelConfig] = Field(default_factory=list, description="Available models")
     model_routing: ModelRoutingConfig = Field(default_factory=ModelRoutingConfig, description="Two-stage simple/complex model routing configuration")
+    semantic_recall: SemanticRecallConfig = Field(default_factory=SemanticRecallConfig, description="Exact-string plus local FAISS Ontology candidate recall")
     evals: EvalsConfig = Field(default_factory=EvalsConfig, description="One-shot offline evaluation runner configuration")
     sandbox: SandboxConfig = Field(
         description=format_field_description(

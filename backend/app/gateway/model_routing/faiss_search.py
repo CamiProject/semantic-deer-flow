@@ -6,13 +6,14 @@ import asyncio
 import hashlib
 import json
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 from app.gateway.model_routing.contracts import RouteType, RoutingSignals
 from deerflow.config.model_routing_config import FaissRoutingConfig
 from deerflow.config.runtime_paths import resolve_path
+from deerflow.utils.hashing_embedding import EmbeddingProvider, HashingEmbeddingProvider
 
 
 class FaissSearchError(RuntimeError):
@@ -21,43 +22,6 @@ class FaissSearchError(RuntimeError):
 
 class FaissConfigurationError(FaissSearchError):
     """Raised when FAISS assets do not match the configured route contract."""
-
-
-class EmbeddingProvider(Protocol):
-    dimension: int
-
-    def encode(self, texts: Sequence[str]) -> Any:
-        """Return a float32 matrix with one normalized vector per text."""
-
-
-class HashingEmbeddingProvider:
-    """Deterministic local character n-gram vectors for the small routing index.
-
-    This intentionally has no model download or network dependency. Deployments
-    can replace this provider behind the protocol when a trained local encoder
-    is available, while keeping index/search orchestration unchanged.
-    """
-
-    def __init__(self, *, dimension: int, model_name: str) -> None:
-        self.dimension = dimension
-        self.model_name = model_name
-
-    def encode(self, texts: Sequence[str]) -> Any:
-        import numpy as np
-
-        matrix = np.zeros((len(texts), self.dimension), dtype=np.float32)
-        for row, text in enumerate(texts):
-            normalized = " ".join(str(text).lower().split())
-            grams = [normalized[index : index + size] for size in (1, 2, 3) for index in range(max(0, len(normalized) - size + 1))]
-            for gram in grams:
-                digest = hashlib.blake2b(f"{self.model_name}:{gram}".encode(), digest_size=8).digest()
-                bucket = int.from_bytes(digest[:4], "big") % self.dimension
-                sign = 1.0 if digest[4] & 1 else -1.0
-                matrix[row, bucket] += sign
-            norm = float(np.linalg.norm(matrix[row]))
-            if norm:
-                matrix[row] /= norm
-        return matrix
 
 
 class FaissSearchResult:

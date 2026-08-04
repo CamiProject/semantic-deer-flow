@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.semantic.api import create_app
 from app.semantic.config import SemanticSettings
+from deerflow.config.semantic_recall_config import SemanticRecallConfig
 from deerflow.semantic.ontology import OntologyRegistry
 from deerflow.semantic.sql_scope import SqlScopePolicyRegistry
 
@@ -354,6 +355,74 @@ def test_ontology_resolve_reports_denied_action_without_disclosing_definition(mo
     assert trace.status_code == 200
     assert trace.json()["events"][0]["decision"] == "deny"
     assert trace.json()["events"][0]["details"]["action_decision"]["code"] == "AUTHORIZATION_DENIED"
+
+
+def test_ontology_resolve_combines_faiss_recall_with_authorization_and_audit(monkeypatch, tmp_path):
+    monkeypatch.setenv("SAAS_AUTHORIZATION_JWT_KEY", SECRET)
+    monkeypatch.setenv("SAAS_AUTHORIZATION_JWT_ALGORITHMS", "HS256")
+    ontology = OntologyRegistry.from_mapping(
+        {
+            "version": "1",
+            "objects": {
+                "Site": {
+                    "table": "demo_sites",
+                    "id_field": "id",
+                    "label": "site",
+                    "properties": {"id": {"column": "id", "type": "string"}},
+                }
+            },
+            "links": {},
+            "metrics": {},
+            "actions": {
+                "site.rename": {
+                    "label": "rename site display name",
+                    "keywords": ["change site display name"],
+                    "target_type": "Site",
+                    "scope_dimension": "site",
+                    "authorization": {"allowed_roles": ["site_admin"]},
+                    "parameters": {"name": {"type": "string", "required": True}},
+                    "approval": {"required": True},
+                    "executor": {"type": "domain_api", "path": "/sites/{target_id}"},
+                }
+            },
+        }
+    )
+    settings = replace(
+        _settings(tmp_path),
+        semantic_recall=SemanticRecallConfig(
+            enabled=True,
+            similarity_threshold=0.45,
+            min_votes=1,
+        ),
+    )
+    app = create_app(settings=settings, ontology=ontology, sql_policy=_policy())
+    viewer_token = _token(role_codes=["viewer"])
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/ontology/resolve",
+            headers=_headers(viewer_token),
+            json={
+                "question": "renaming the site's displayed name",
+                "include_facts": False,
+            },
+        )
+        trace = client.get(
+            "/v1/audit/traces/semantic-trace-1",
+            headers=_headers(viewer_token),
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["actions"] == []
+    assert payload["action_authorization"]["code"] == "AUTHORIZATION_DENIED"
+    assert "faiss" in payload["resolution"]["sources"]
+    assert "site.rename" not in str(payload)
+    audit = trace.json()["events"][0]
+    assert audit["decision"] == "deny"
+    assert audit["details"]["semantic_recall"]["source"] == "faiss"
+    assert audit["details"]["semantic_recall"]["candidate_counts"]["actions"] == 1
+    assert "site.rename" not in str(audit)
 
 
 def test_semantic_api_rejects_scope_ref_resolution_to_tenant_all(monkeypatch, tmp_path):

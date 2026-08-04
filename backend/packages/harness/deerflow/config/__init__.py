@@ -4,6 +4,7 @@ from .extensions_config import ExtensionsConfig, get_extensions_config
 from .loop_detection_config import LoopDetectionConfig
 from .memory_config import MemoryConfig, get_memory_config
 from .paths import Paths, get_paths
+from .semantic_recall_config import SemanticRecallConfig
 from .skill_evolution_config import SkillEvolutionConfig
 from .skills_config import SkillsConfig
 from .tracing_config import (
@@ -22,6 +23,7 @@ __all__ = [
     "SkillsConfig",
     "ExtensionsConfig",
     "EvalsConfig",
+    "SemanticRecallConfig",
     "get_extensions_config",
     "LoopDetectionConfig",
     "MemoryConfig",

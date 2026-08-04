@@ -382,6 +382,13 @@ The `propose_action` tool is a deterministic prepare operation: it persists and 
 the proposal in one call, but never executes it. Semantic preflight streams and persists
 bounded `AUTHORIZATION_DENIED` evidence for a matched but unauthorized Action before
 SubAgents run.
+`config.yaml -> semantic_recall` adds a second Ontology candidate-recall stage after
+exact name/label/keyword matching. Semantic API builds a process-local FAISS index from
+reviewed Object/Metric/Action aliases and uses the same deterministic hashing embedding
+as Gateway model routing. Recalled IDs are merged structurally before role/Scope/Policy
+filtering; FAISS never authorizes or executes an Action. Action candidates additionally
+require a deterministic write-intent signal. Missing FAISS dependencies degrade to exact
+matching, and `scripts/detect_uv_extras.py` installs `model-routing` when recall is enabled.
 
 The existing `/sql-cross-validate/*` routes remain A-protected compatibility/break-glass
 paths. SQL SubAgents set `skills=[]`; semantic-mode `mysql-query` receives only Semantic

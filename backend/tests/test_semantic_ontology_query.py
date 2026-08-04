@@ -137,6 +137,21 @@ def test_registry_resolves_action_keywords(registry, authorization, question):
     assert registry.action("site.rename").keywords == ("rename site", "change site")
 
 
+def test_registry_merges_structured_semantic_candidates_before_authorization(registry, authorization):
+    question = "update the facility title"
+
+    exact = registry.resolve(question, authorization=authorization)
+    recalled = registry.resolve(
+        question,
+        authorization=authorization,
+        candidate_ids={"objects": ["Site"], "actions": ["site.rename"]},
+    )
+
+    assert exact["actions"] == []
+    assert [item["id"] for item in recalled["objects"]] == ["Site"]
+    assert [item["id"] for item in recalled["actions"]] == ["site.rename"]
+
+
 def test_registry_filters_role_restricted_metrics_and_actions(registry):
     viewer = AuthorizationContext.from_mapping(
         {

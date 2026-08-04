@@ -28,6 +28,7 @@ from app.semantic.request_context import (
 )
 from deerflow.runtime.authorization_context import AuthorizationContext
 from deerflow.semantic.demo import create_public_demo_runtime, public_demo_enabled
+from deerflow.semantic.faiss_recall import OntologyFaissRecaller, OntologyRecallResult
 from deerflow.semantic.ontology import OntologyError, get_ontology_registry
 from deerflow.semantic.query import SemanticFilter, SemanticOrder
 from deerflow.semantic.runtime import SemanticQueryRuntime
@@ -123,6 +124,47 @@ def _traced(payload: dict[str, Any], context: SemanticRequestContext) -> dict[st
     return {**payload, "semantic_trace_id": context.semantic_trace_id}
 
 
+def _has_semantic_matches(context: dict[str, Any]) -> bool:
+    return any(context.get(kind) for kind in ("objects", "metrics", "actions"))
+
+
+def _resolve_with_recall(
+    *,
+    runtime: SemanticQueryRuntime,
+    recaller: OntologyFaissRecaller,
+    authorization: AuthorizationContext,
+    question: str,
+    include_facts: bool,
+    fact_limit: int,
+) -> tuple[dict[str, Any], dict[str, Any], OntologyRecallResult]:
+    exact = runtime.ontology.resolve(question)
+    recall = recaller.recall(question)
+    result = runtime.resolve_business_context(
+        authorization=authorization,
+        question=question,
+        include_facts=include_facts,
+        fact_limit=fact_limit,
+        candidate_ids=recall.candidate_ids,
+    )
+    unfiltered = runtime.ontology.resolve(
+        question,
+        candidate_ids=recall.candidate_ids,
+    )
+    sources = []
+    if _has_semantic_matches(exact):
+        sources.append("string")
+    if recall.source == "faiss":
+        sources.append("faiss")
+    result = {
+        **result,
+        "resolution": {
+            "sources": sources,
+            "semantic_recall": recall.audit_metadata(),
+        },
+    }
+    return result, unfiltered, recall
+
+
 def _handle_domain_error(exc: Exception) -> HTTPException:
     if isinstance(exc, ActionError):
         return HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.detail})
@@ -165,6 +207,10 @@ def create_app(*, settings=None, ontology=None, sql_policy=None) -> FastAPI:
     resolved_settings = settings or get_semantic_settings()
     resolved_ontology = ontology or get_ontology_registry()
     resolved_sql_policy = sql_policy or get_sql_scope_policy_registry()
+    resolved_recaller = OntologyFaissRecaller(
+        resolved_ontology,
+        resolved_settings.semantic_recall,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -184,6 +230,7 @@ def create_app(*, settings=None, ontology=None, sql_policy=None) -> FastAPI:
                 sql_policy=resolved_sql_policy,
             )
         )
+        app.state.semantic_recaller = resolved_recaller
         app.state.action_repository = ActionRepository(session_factory, resolved_ontology)
         app.state.semantic_audit_repository = SemanticAuditRepository(session_factory)
         yield
@@ -238,16 +285,15 @@ def create_app(*, settings=None, ontology=None, sql_policy=None) -> FastAPI:
         request_context: SemanticRequestContext = Depends(require_semantic_request_context),
     ) -> dict[str, Any]:
         try:
-            result = await asyncio.to_thread(
-                _runtime(request).resolve_business_context,
+            result, unfiltered, recall = await asyncio.to_thread(
+                _resolve_with_recall,
+                runtime=_runtime(request),
+                recaller=request.app.state.semantic_recaller,
                 authorization=authorization,
                 question=body.question,
                 include_facts=body.include_facts,
                 fact_limit=body.fact_limit,
             )
-            # Resolve without authorization only to detect a denied Action intent.
-            # Do not return the unfiltered Action definition or identifier.
-            unfiltered = resolved_ontology.resolve(body.question)
             authorized_action_ids = {str(item.get("id")) for item in result.get("actions", []) if isinstance(item, dict) and item.get("id")}
             action_authorization = None
             if unfiltered.get("actions") and not authorized_action_ids:
@@ -269,6 +315,8 @@ def create_app(*, settings=None, ontology=None, sql_policy=None) -> FastAPI:
                     "fact_group_count": len(result.get("facts", [])),
                     "source_refs": result.get("source_refs", []),
                     "action_decision": action_authorization,
+                    "resolution_sources": result["resolution"]["sources"],
+                    "semantic_recall": recall.audit_metadata(),
                 },
                 decision="deny" if action_authorization else "allow",
             )

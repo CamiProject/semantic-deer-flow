@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -487,13 +487,19 @@ class OntologyRegistry:
         self,
         question: str,
         authorization: AuthorizationContext | None = None,
+        candidate_ids: Mapping[str, Sequence[str]] | None = None,
     ) -> dict[str, Any]:
         normalized = question.casefold()
+        candidates = {
+            "objects": frozenset(str(value) for value in (candidate_ids or {}).get("objects", ())),
+            "metrics": frozenset(str(value) for value in (candidate_ids or {}).get("metrics", ())),
+            "actions": frozenset(str(value) for value in (candidate_ids or {}).get("actions", ())),
+        }
 
-        def matches(name: str, label: str, keywords: tuple[str, ...]) -> bool:
-            return any(value.casefold() in normalized for value in (name, label, *keywords))
+        def matches(kind: str, name: str, label: str, keywords: tuple[str, ...]) -> bool:
+            return name in candidates[kind] or any(value.casefold() in normalized for value in (name, label, *keywords))
 
-        matched_objects = [obj for obj in self.objects.values() if matches(obj.name, obj.label, obj.keywords) and (authorization is None or self._role_allowed(obj.allowed_roles, authorization))]
+        matched_objects = [obj for obj in self.objects.values() if matches("objects", obj.name, obj.label, obj.keywords) and (authorization is None or self._role_allowed(obj.allowed_roles, authorization))]
         matched_object_names = {obj.name for obj in matched_objects}
 
         def property_is_visible(prop: PropertyDefinition) -> bool:
@@ -565,7 +571,7 @@ class OntologyRegistry:
                     "source_refs": list(metric.source_refs),
                 }
                 for metric in self.metrics.values()
-                if matches(metric.name, metric.label, metric.keywords)
+                if matches("metrics", metric.name, metric.label, metric.keywords)
                 and (
                     authorization is None
                     or (
@@ -586,7 +592,7 @@ class OntologyRegistry:
                     "approval_required": action.approval_required,
                 }
                 for action in self.actions.values()
-                if matches(action.name, action.label, action.keywords)
+                if matches("actions", action.name, action.label, action.keywords)
                 and (
                     authorization is None
                     or (

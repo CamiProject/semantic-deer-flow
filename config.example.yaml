@@ -17,7 +17,7 @@
 # ============================================================================
 # Bump this number when the config schema changes.
 # Run `make config-upgrade` to merge new fields into your local config.yaml.
-config_version: 23
+config_version: 24
 
 # ============================================================================
 # Logging
@@ -92,6 +92,23 @@ model_routing:
     min_votes: 2
     label_version: "1"
     index_version: "1"
+
+# ============================================================================
+# Semantic Ontology Recall (exact strings + local hashing/FAISS candidates)
+# ============================================================================
+# The index is built in memory from reviewed Object/Metric/Action names, labels,
+# and keywords. FAISS only recalls candidates; role, Scope, Policy, approval,
+# and execution checks remain deterministic. Action candidates also require a
+# write-intent signal to prevent read questions from becoming write requests.
+semantic_recall:
+  enabled: true
+  embedding_provider: hashing
+  embedding_model: semantic-hash-v1
+  embedding_dimension: 384
+  top_k: 12
+  similarity_threshold: 0.55
+  min_votes: 1
+  max_candidates_per_kind: 3
 
 # ============================================================================
 # Offline Evals (one-shot CLI; credentials and service URLs stay in .env)
