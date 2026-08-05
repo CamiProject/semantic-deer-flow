@@ -184,15 +184,6 @@ and production containers with `make down`. The browser entry remains
 `http://localhost:2026`; direct service ports are primarily for development and
 internal service checks.
 
-For an existing checkout, the repository URL is:
-
-```text
-https://github.com/<your-github-account>/semantic-deer-flow
-```
-
-Replace `<your-github-account>` with the final owner before release. Do not
-replace this URL with the official DeerFlow clone URL.
-
 ## SaaS API Integration
 
 Trusted callers authenticate to Gateway and pass short-lived signed authorization

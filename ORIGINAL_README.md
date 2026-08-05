@@ -10,7 +10,6 @@ this archive and must be recorded here by the release owner before release:
 
 ```text
 Accepted source snapshot: <commit-to-be-confirmed>
-Repository: https://github.com/<your-github-account>/semantic-deer-flow
 ```
 
 The upstream project remains the authoritative source for DeerFlow itself:

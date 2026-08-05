@@ -164,15 +164,6 @@ API、CLI-backed Model、模型路由、Sandbox、MCP、Tracing、Memory 和 Cha
 `make down`。浏览器入口统一是 `http://localhost:2026`，直接访问其他端口主要用于
 开发和内部检查。
 
-仓库地址为：
-
-```text
-https://github.com/<your-github-account>/semantic-deer-flow
-```
-
-正式发布前需要将 `<your-github-account>` 替换为最终 owner，不要换回官方
-DeerFlow clone 地址。
-
 ## SaaS API 集成
 
 可信调用方先在 Gateway 完成认证，并提交包含 tenant、principal、roles、Scope 和
